@@ -1,0 +1,49 @@
+version: "3.5"
+services:
+  # Orion is the context broker
+  orion:
+    image: fiware/orion:${ORION_VERSION}
+    hostname: orion
+    container_name: fiware-orion
+    depends_on:
+      - mongo-db
+    networks:
+      - default
+    ports:
+      # localhost:1026
+      - "${ORION_PORT}:${ORION_PORT}"
+    command: -dbhost mongo-db -logLevel DEBUG -noCache
+    healthcheck:
+      test: curl --fail -s http://orion:${ORION_PORT}/version || exit 1
+      interval: 5s
+
+  # Databases
+  mongo-db:
+    image: mongo:${MONGO_DB_VERSION}
+    hostname: mongo-db
+    container_name: db-mongo
+    expose:
+      # localhost:27017
+      - "${MONGO_DB_PORT}"
+    ports:
+      # localhost:27017
+      - "${MONGO_DB_PORT}:${MONGO_DB_PORT}"
+    networks:
+      - default
+    volumes:
+      - mongo-db:/data
+    healthcheck:
+      test: |
+        host=`hostname --ip-address || echo '127.0.0.1'`; 
+        mongo --quiet $host/test --eval 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 2)' && echo 0 || echo 1
+      interval: 5s
+    
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.18.1.0/24
+
+volumes:
+  mongo-db: ~
