@@ -1,8 +1,4 @@
 #!/bin/bash
-#
-#  curl commands to reload the data from the previous tutorial
-#
-#
 
 set -e
 
