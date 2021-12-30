@@ -1,0 +1,80 @@
+services:
+  # Context broker
+  orion:
+    image: fiware/orion:${ORION_VERSION}
+    hostname: orion
+    container_name: fiware-orion
+    depends_on:
+      - mongo-db
+    networks:
+      - default
+    ports:
+      - "${ORION_PORT}:${ORION_PORT}" # localhost:1026
+    command: -dbhost mongo-db -logLevel DEBUG -noCache
+    healthcheck:
+      test: curl --fail -s http://orion:${ORION_PORT}/version || exit 1
+      interval: 5s
+
+  # IoT Sensors over HTTP
+  fiware:
+    image: fiware/tutorials.context-provider
+    hostname: context-provider
+    container_name: fiware
+    depends_on:
+      - orion
+    networks:
+      default:
+        aliases:
+          - fiware
+          - iot-sensors
+    expose:
+      - "${FIWARE_APP_PORT}" # localhost:3000
+      - "${FIWARE_DEVICE_PORT}" # localhost:3001
+    ports:
+      - "${FIWARE_APP_PORT}:${FIWARE_APP_PORT}" # localhost:3000
+      - "${FIWARE_DEVICE_PORT}:${FIWARE_DEVICE_PORT}" # localhost:3001
+    environment:
+      - "MONGO_URL=mongodb://mongo-db:27017"
+      - "DEBUG=FIWARE:*"
+      - "WEB_APP_PORT=${FIWARE_APP_PORT}" # Port used by the content provider proxy and web-app for viewing data
+      - "IOTA_HTTP_HOST=iot-agent"
+      - "IOTA_HTTP_PORT=${IOTA_SOUTH_PORT}"
+      - "DUMMY_DEVICES_PORT=${FIWARE_DEVICE_PORT}" # Port used by the dummy IOT devices to receive commands
+      - "DUMMY_DEVICES_TRANSPORT=HTTP" # Default transport used by dummy Io devices
+      - "DUMMY_DEVICES_API_KEY=4jggokgpepnvsb2uv4s40d59ov"
+      - "CONTEXT_BROKER=http://orion:${ORION_PORT}/v2" # URL of the context broker to update context
+      - "OPENWEATHERMAP_KEY_ID=${OPENWEATHER_API_KEY}"
+      - "TWITTER_CONSUMER_KEY=${DEVELOPMENT_CONSUMER_API_KEY}"
+      - "TWITTER_CONSUMER_SECRET=${DEVELOPMENT_CONSUMER_SECRET_KEY}"
+
+
+
+  # Databases
+  mongo-db:
+    image: mongo:${MONGO_DB_VERSION}
+    hostname: mongo-db
+    container_name: db-mongo
+    expose:
+      - "${MONGO_DB_PORT}"
+    ports:
+      # localhost:27017
+      - "${MONGO_DB_PORT}:${MONGO_DB_PORT}"
+    networks:
+      - default
+    volumes:
+      - mongo-db:/data
+    healthcheck:
+      test: |
+        host=`hostname --ip-address || echo '127.0.0.1'`; 
+        mongo --quiet $host/test --eval 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 2)' && echo 0 || echo 1
+      interval: 5s
+    
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.18.1.0/24
+
+volumes:
+  mongo-db: ~
