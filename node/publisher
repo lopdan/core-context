@@ -1,2 +1,0 @@
-docker run -it --rm --name mqtt-publisher \
-  --network fiware_default efrecon/mqtt-client pub -h mosquitto -m "HELLO WORLD" -t "/test"
