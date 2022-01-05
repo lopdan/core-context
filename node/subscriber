@@ -1,0 +1,2 @@
+docker run -it --rm --name mqtt-subscriber \
+  --network fiware_default efrecon/mqtt-client sub -h mosquitto -t "/#"
